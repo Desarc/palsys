@@ -74,7 +74,7 @@
 #define _PATH_SPREAD_PIDDIR "/var/run"
 
 /* Specify location of spread.conf and other configuration files */
-#define SPREAD_ETCDIR "/home/huaiyuan/spread/etc"
+#define SPREAD_ETCDIR "/home/desarc/spread/etc"
 
 /* The number of bytes in a char.  */
 #define SIZEOF_CHAR 1
@@ -83,7 +83,7 @@
 #define SIZEOF_INT 4
 
 /* The number of bytes in a long int.  */
-#define SIZEOF_LONG_INT 4
+#define SIZEOF_LONG_INT 8
 
 /* The number of bytes in a long long int.  */
 #define SIZEOF_LONG_LONG_INT 8

@@ -25,7 +25,7 @@ instead of
 .I ./spread.conf
 .RS
 The default config file location. 
-.I /home/huaiyuan/spread/etc/spread.conf 
+.I /home/desarc/spread/etc/spread.conf 
 is also searched if a local file is not found.
 .SH DIAGNOSTICS
 The daemon will output some startup information to stdout

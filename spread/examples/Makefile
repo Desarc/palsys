@@ -1,6 +1,6 @@
 .SUFFIXES: .lo .to .tlo
 
-prefix=/home/huaiyuan/spread
+prefix=/home/desarc/spread
 exec_prefix=${prefix}
 bindir=${exec_prefix}/bin
 sbindir=${exec_prefix}/sbin
@@ -13,7 +13,7 @@ piddir=/var/run
 srcdir=.
 top_srcdir=..
 buildtoolsdir=$(top_srcdir)/buildtools
-host=i686-pc-linux-gnu
+host=x86_64-unknown-linux-gnu
 
 DESTDIR=
 
@@ -34,7 +34,7 @@ LIBS=-lm -lnsl
 THLDFLAGS=
 THLIBS=-lpthread 
 AR=/usr/bin/ar
-LEX=
+LEX=/usr/bin/flex
 RANLIB=ranlib
 INSTALL=/usr/bin/install -c
 SOFTLINK=ln -s

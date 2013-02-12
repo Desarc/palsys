@@ -32,7 +32,7 @@ instead of
 .I ./spread.conf
 .RS
 The default config file location. 
-.I /home/huaiyuan/spread/etc/spread.conf 
+.I /home/desarc/spread/etc/spread.conf 
 is also searched if a local file is not found.
 .SH BUGS
 The spmonitor works by sending UDP packets to the Spread daemon, so if network 

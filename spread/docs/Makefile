@@ -1,6 +1,6 @@
 .SUFFIXES: .lo .to .tlo
 
-prefix=/home/huaiyuan/spread
+prefix=/home/desarc/spread
 exec_prefix=${prefix}
 bindir=${exec_prefix}/bin
 sbindir=${exec_prefix}/sbin
