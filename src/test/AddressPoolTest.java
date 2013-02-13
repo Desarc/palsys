@@ -41,16 +41,16 @@ public class AddressPoolTest extends TestCase {
 	
 	public void testGetLease() {
 		setUp();
-		IPAddress lease = pool.getNewLease(testID, 2000);
+		IPAddress lease = pool.getNewLease(testID, 2000, server1.getServerID());
 		assertEquals(testID, lease.getOwner());
 		assertEquals(base+1, lease.getAddress());
 		assertEquals(false, lease.hasExpired());
-		assertEquals(server1, lease.getController());
+		assertEquals(lease.getController(), server1);
 	}
 	
 	public void testLeaseExpired() {
 		setUp();
-		IPAddress lease = pool.getNewLease(testID, 2000);
+		IPAddress lease = pool.getNewLease(testID, 2000, server1.getServerID());
 		try {
 			Thread.sleep(2200);
 		} catch (InterruptedException e) {
@@ -62,26 +62,64 @@ public class AddressPoolTest extends TestCase {
 	
 	public void testRenewLease() {
 		setUp();
-		IPAddress lease = pool.getNewLease(testID, 2000);
+		IPAddress lease = pool.getNewLease(testID, 2000, server1.getServerID());
 		try {
 			Thread.sleep(2000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		pool.renewLease(testID, 2000);
+		pool.renewLease(testID, 2000, server1.getServerID());
 		assertEquals(false, lease.hasExpired());
 	}
 	
 	public void testLoadBalancing() {
 		setUpMultiple();
 		int total = 0;
-		for (AddressServer server : servers) {
-			assertTrue(server.getManagedAddresses().size() > 0);
-			total += server.getManagedAddresses().size();
+		for (AddressServer server : pool.getActiveServers()) {
+			assertTrue(server.getFreeAddresses().size() > 0);
+			total += server.getFreeAddresses().size();
 		}
 		assertEquals(254, total);
 	}
+	
+	public void testServerCrash() {
+		setUpMultiple();
+		pool.serverCrash(server2);
+		assertEquals(2, pool.numberOfActiveServers());
+		assertFalse(pool.isActive(server2));
+		int total = 0;
+		for (AddressServer server : pool.getActiveServers()) {
+			assertTrue(server.getFreeAddresses().size() > 0);
+			total += server.getFreeAddresses().size();
+		}
+		assertEquals(254, total);
+		pool.serverCrash(server3);
+		assertEquals(1, pool.numberOfActiveServers());
+		assertFalse(pool.isActive(server3));
+		total = 0;
+		for (AddressServer server : pool.getActiveServers()) {
+			assertTrue(server.getFreeAddresses().size() > 0);
+			total += server.getFreeAddresses().size();
+		}
+		assertEquals(254, total);
+	}
+	
+	public void testServerCrashWithBackupChange() {
+		setUpMultiple();
+		pool.serverCrash(server1);
+		assertEquals(2, pool.numberOfActiveServers());
+		assertNotSame(server1, pool.getCurrentBackup());
+		assertFalse(pool.isActive(server1));
+		int total = 0;
+		for (AddressServer server : pool.getActiveServers()) {
+			assertTrue(server.getFreeAddresses().size() > 0);
+			total += server.getFreeAddresses().size();
+		}
+		assertEquals(254, total);
+	}
+	
+	
 	
 	
 	public static Test suite() {

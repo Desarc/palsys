@@ -14,22 +14,18 @@ import java.util.ArrayList;
  *
  */
 public class AddressPool {
-
-	private ArrayList<IPAddress> free;
-	private ArrayList<IPAddress> assigned;
+	
+	public static final long defaultValidTime = 60000;
 	
 	private ArrayList<AddressServer> activeServers;
 	private AddressServer currentBackup;
 	
-	private long defaultValidTime = 60000;
 	
 	/**
 	 * 
 	 * @param addressBase format: "xxx.xxx.xxx."
 	 */
 	public AddressPool(String addressBase, ArrayList<AddressServer> controllers) {
-		free = new ArrayList<IPAddress>();
-		assigned = new ArrayList<IPAddress>();
 		activeServers = new ArrayList<AddressServer>();
 		
 		currentBackup = controllers.get(0);
@@ -37,22 +33,19 @@ public class AddressPool {
 			activeServers.add(controller);
 		}
 		
-		int c = 0;
-		//TODO: better load balancing
+		int c = activeServers.size()-1;
 		for(int i=254; i>0; i--) {
 			//Alternating between servers to ensure load balancing.
 			IPAddress address = new IPAddress(addressBase+i, -1, activeServers.get(c)); 
-			free.add(address);
-			activeServers.get(c).addManagedAddress(address);
-			c++;
-			if (c >= activeServers.size()) {
-				c = 0;
+			activeServers.get(c).addFreeAddress(address);
+			if (i < c*254/activeServers.size()) {
+				c--;
 			}
 		}
 	}
 	
-	public IPAddress getNewLease(String requesterID) {
-		return getNewLease(requesterID, defaultValidTime);
+	public IPAddress getNewLease(String requesterID, String serverID) {
+		return getNewLease(requesterID, defaultValidTime, serverID);
 	}
 	
 	/**	TODO: check for duplicate requesterIDs
@@ -62,12 +55,13 @@ public class AddressPool {
 	 * @param validTime
 	 * @return
 	 */
-	public IPAddress getNewLease(String requesterID, long validTime) {
-		IPAddress lease = free.get(free.size()-1);
-		lease.assign(requesterID, validTime);
-		free.remove(lease);
-		assigned.add(lease);
-		return lease;
+	public IPAddress getNewLease(String requesterID, long validTime, String serverID) {
+		for (AddressServer server : activeServers) {
+			if (server.getServerID().equals(serverID)) {
+				return server.getNewLease(requesterID, validTime);
+			}
+		}
+		return null;
 	}
 	
 	/**
@@ -76,18 +70,17 @@ public class AddressPool {
 	 * @param ownerID
 	 * @return
 	 */
-	public IPAddress getExistingLease(String ownerID) {
-		for (IPAddress lease : assigned) {
-			if (lease.getOwner().equals(ownerID)) {
-				return lease;
+	public IPAddress getExistingLease(String ownerID, String serverID) {
+		for (AddressServer server : activeServers) {
+			if (server.getServerID().equals(serverID)) {
+				return server.getExistingLease(ownerID);
 			}
 		}
-		//if requesting client has no active lease, assign a new one
-		return getNewLease(ownerID, defaultValidTime);		
+		return null;
 	}
 	
-	public boolean renewLease(String ownerID) {
-		return renewLease(ownerID, defaultValidTime);
+	public boolean renewLease(String ownerID, String serverID) {
+		return renewLease(ownerID, defaultValidTime, serverID);
 	}
 	
 	/**
@@ -97,11 +90,10 @@ public class AddressPool {
 	 * @param extraTime
 	 * @return
 	 */
-	public boolean renewLease(String ownerID, long extraTime) {
-		for (IPAddress lease : assigned) {
-			if (lease.getOwner().equals(ownerID)) {
-				lease.extendValidTime(extraTime);
-				return true;
+	public boolean renewLease(String ownerID, long extraTime, String serverID) {
+		for (AddressServer server : activeServers) {
+			if (server.getServerID().equals(serverID)) {
+				return server.renewLease(ownerID, extraTime);
 			}
 		}
 		//return false if unable to renew lease
@@ -113,14 +105,8 @@ public class AddressPool {
 	 * moves them to the free pool and notifies the previous owner.
 	 */
 	public void reclaimExpiredLeases() {
-		for (IPAddress lease : assigned) {
-			if (lease.hasExpired()) {
-				String previousOwner = lease.getOwner();
-				lease.setFree();
-				free.add(lease);
-				assigned.remove(lease);
-				notifyReclaim(previousOwner);
-			}
+		for (AddressServer server : activeServers) {
+			server.reclaimExpiredLeases();
 		}
 	}
 	
@@ -131,8 +117,8 @@ public class AddressPool {
 	 * @return
 	 */
 	public boolean isAssigned(String address) {
-		for (IPAddress lease : assigned) {
-			if (lease.getAddress().equals(address)) {
+		for (AddressServer server : activeServers) {
+			if (server.isAssigned(address)) {
 				return true;
 			}
 		}
@@ -145,21 +131,15 @@ public class AddressPool {
 	 * @param addresses
 	 * @param newController
 	 */
-	public void changeController(ArrayList<IPAddress> addresses, AddressServer newController) {
-		for (IPAddress address : addresses) {
+	private void changeController(AddressServer oldController, AddressServer newController) {
+		for (IPAddress address : oldController.getFreeAddresses()) {
 			address.setController(newController);
+			newController.addFreeAddress(address);
 		}
-	}
-	
-	
-	/**TODO
-	 * Method to try and notify the owner of the address.
-	 * Assuming each client can only have 1 active lease.
-	 * 
-	 * @param lease
-	 */
-	private void notifyReclaim(String previousOwner) {
-		
+		for (IPAddress address : oldController.getAssignedAddresses()) {
+			address.setController(newController);
+			newController.addAssignedAddress(address);
+		}
 	}
 	
 	/**
@@ -168,7 +148,45 @@ public class AddressPool {
 	 */
 	public void serverCrash(AddressServer server) {
 		if (activeServers.contains(server)) {
-			changeController(server.getManagedAddresses(), currentBackup);
+			if (server == currentBackup) {
+				if (!assignNewBackup(server)) {
+					return;
+				}
+			}
+			changeController(server, currentBackup);
+			activeServers.remove(server);
 		}
+	}
+	
+	/**
+	 * Method for changing which server takes over in case of a crash
+	 * @param oldBackup
+	 * @return
+	 */
+	private boolean assignNewBackup(AddressServer oldBackup) {
+		for (AddressServer server : activeServers) {
+			if (server != oldBackup) {
+				currentBackup = server;
+				return true;
+			}
+		}
+		//return false if no other backup server is available
+		return false;
+	}
+	
+	public int numberOfActiveServers() {
+		return activeServers.size();
+	}
+	
+	public boolean isActive(AddressServer server) {
+		return activeServers.contains(server);
+	}
+	
+	public AddressServer getCurrentBackup() {
+		return currentBackup;
+	}
+	
+	public ArrayList<AddressServer> getActiveServers() {
+		return activeServers;
 	}
 }
