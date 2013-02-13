@@ -4,11 +4,9 @@ import java.util.ArrayList;
 
 
 /**
- * Class for managing an address pool. The pool is split between the active servers,
- * and each of the active servers must have an identical instance of this class.
- * For now, the AddressServer is not the real AddressServer program, but rather a
- * placeholder class for keeping track of which addresses are managed by who.
- * Every active server must know this.
+ * Class for managing an address pool. The pool is split between the active partitions,
+ * and each of the active partitions must have an identical instance of this class.
+ * Each active partition is assigned an address partition.
  * 
  * @author desarc
  *
@@ -17,35 +15,35 @@ public class AddressPool {
 	
 	public static final long defaultValidTime = 60000;
 	
-	private ArrayList<AddressServer> activeServers;
-	private AddressServer currentBackup;
+	private ArrayList<AddressPartition> activePartitions;
+	private AddressPartition currentBackup;
 	
 	
 	/**
 	 * 
 	 * @param addressBase format: "xxx.xxx.xxx."
 	 */
-	public AddressPool(String addressBase, ArrayList<AddressServer> controllers) {
-		activeServers = new ArrayList<AddressServer>();
+	public AddressPool(String addressBase, ArrayList<AddressPartition> controllers) {
+		activePartitions = new ArrayList<AddressPartition>();
 		
 		currentBackup = controllers.get(0);
-		for (AddressServer controller : controllers) {
-			activeServers.add(controller);
+		for (AddressPartition controller : controllers) {
+			activePartitions.add(controller);
 		}
 		
-		int c = activeServers.size()-1;
+		int c = activePartitions.size()-1;
 		for(int i=254; i>0; i--) {
-			//Alternating between servers to ensure load balancing.
-			IPAddress address = new IPAddress(addressBase+i, -1, activeServers.get(c)); 
-			activeServers.get(c).addFreeAddress(address);
-			if (i < c*254/activeServers.size()) {
+			//Alternating between partitions to ensure load balancing.
+			IPAddress address = new IPAddress(addressBase+i, -1, activePartitions.get(c).getServerID()); 
+			activePartitions.get(c).addFreeAddress(address);
+			if (i < c*254/activePartitions.size()) {
 				c--;
 			}
 		}
 	}
 	
-	public IPAddress getNewLease(String requesterID, String serverID) {
-		return getNewLease(requesterID, defaultValidTime, serverID);
+	public IPAddress getNewLease(String requesterID, String partitionID) {
+		return getNewLease(requesterID, defaultValidTime, partitionID);
 	}
 	
 	/**	TODO: check for duplicate requesterIDs
@@ -55,10 +53,10 @@ public class AddressPool {
 	 * @param validTime
 	 * @return
 	 */
-	public IPAddress getNewLease(String requesterID, long validTime, String serverID) {
-		for (AddressServer server : activeServers) {
-			if (server.getServerID().equals(serverID)) {
-				return server.getNewLease(requesterID, validTime);
+	public IPAddress getNewLease(String requesterID, long validTime, String partitionID) {
+		for (AddressPartition partition : activePartitions) {
+			if (partition.getServerID().equals(partitionID)) {
+				return partition.getNewLease(requesterID, validTime);
 			}
 		}
 		return null;
@@ -70,17 +68,17 @@ public class AddressPool {
 	 * @param ownerID
 	 * @return
 	 */
-	public IPAddress getExistingLease(String ownerID, String serverID) {
-		for (AddressServer server : activeServers) {
-			if (server.getServerID().equals(serverID)) {
-				return server.getExistingLease(ownerID);
+	public IPAddress getExistingLease(String ownerID, String partitionID) {
+		for (AddressPartition partition : activePartitions) {
+			if (partition.getServerID().equals(partitionID)) {
+				return partition.getExistingLease(ownerID);
 			}
 		}
 		return null;
 	}
 	
-	public boolean renewLease(String ownerID, String serverID) {
-		return renewLease(ownerID, defaultValidTime, serverID);
+	public boolean renewLease(String ownerID, String partitionID) {
+		return renewLease(ownerID, defaultValidTime, partitionID);
 	}
 	
 	/**
@@ -90,10 +88,10 @@ public class AddressPool {
 	 * @param extraTime
 	 * @return
 	 */
-	public boolean renewLease(String ownerID, long extraTime, String serverID) {
-		for (AddressServer server : activeServers) {
-			if (server.getServerID().equals(serverID)) {
-				return server.renewLease(ownerID, extraTime);
+	public boolean renewLease(String ownerID, long extraTime, String partitionID) {
+		for (AddressPartition partition : activePartitions) {
+			if (partition.getServerID().equals(partitionID)) {
+				return partition.renewLease(ownerID, extraTime);
 			}
 		}
 		//return false if unable to renew lease
@@ -105,8 +103,8 @@ public class AddressPool {
 	 * moves them to the free pool and notifies the previous owner.
 	 */
 	public void reclaimExpiredLeases() {
-		for (AddressServer server : activeServers) {
-			server.reclaimExpiredLeases();
+		for (AddressPartition partition : activePartitions) {
+			partition.reclaimExpiredLeases();
 		}
 	}
 	
@@ -117,8 +115,8 @@ public class AddressPool {
 	 * @return
 	 */
 	public boolean isAssigned(String address) {
-		for (AddressServer server : activeServers) {
-			if (server.isAssigned(address)) {
+		for (AddressPartition partition : activePartitions) {
+			if (partition.isAssigned(address)) {
 				return true;
 			}
 		}
@@ -131,62 +129,62 @@ public class AddressPool {
 	 * @param addresses
 	 * @param newController
 	 */
-	private void changeController(AddressServer oldController, AddressServer newController) {
+	private void changeController(AddressPartition oldController, AddressPartition newController) {
 		for (IPAddress address : oldController.getFreeAddresses()) {
-			address.setController(newController);
+			address.setController(newController.getServerID());
 			newController.addFreeAddress(address);
 		}
 		for (IPAddress address : oldController.getAssignedAddresses()) {
-			address.setController(newController);
+			address.setController(newController.getServerID());
 			newController.addAssignedAddress(address);
 		}
 	}
 	
 	/**
-	 * Example handling of server crash.
-	 * @param server
+	 * Example handling of partition crash.
+	 * @param partition
 	 */
-	public void serverCrash(AddressServer server) {
-		if (activeServers.contains(server)) {
-			if (server == currentBackup) {
-				if (!assignNewBackup(server)) {
+	public void serverCrash(AddressPartition partition) {
+		if (activePartitions.contains(partition)) {
+			if (partition == currentBackup) {
+				if (!assignNewBackup(partition)) {
 					return;
 				}
 			}
-			changeController(server, currentBackup);
-			activeServers.remove(server);
+			changeController(partition, currentBackup);
+			activePartitions.remove(partition);
 		}
 	}
 	
 	/**
-	 * Method for changing which server takes over in case of a crash
+	 * Method for changing which partition takes over in case of a crash
 	 * @param oldBackup
 	 * @return
 	 */
-	private boolean assignNewBackup(AddressServer oldBackup) {
-		for (AddressServer server : activeServers) {
-			if (server != oldBackup) {
-				currentBackup = server;
+	private boolean assignNewBackup(AddressPartition oldBackup) {
+		for (AddressPartition partition : activePartitions) {
+			if (partition != oldBackup) {
+				currentBackup = partition;
 				return true;
 			}
 		}
-		//return false if no other backup server is available
+		//return false if no other backup partition is available
 		return false;
 	}
 	
 	public int numberOfActiveServers() {
-		return activeServers.size();
+		return activePartitions.size();
 	}
 	
-	public boolean isActive(AddressServer server) {
-		return activeServers.contains(server);
+	public boolean isActive(AddressPartition partition) {
+		return activePartitions.contains(partition);
 	}
 	
-	public AddressServer getCurrentBackup() {
+	public AddressPartition getCurrentBackup() {
 		return currentBackup;
 	}
 	
-	public ArrayList<AddressServer> getActiveServers() {
-		return activeServers;
+	public ArrayList<AddressPartition> getActivePartitions() {
+		return activePartitions;
 	}
 }

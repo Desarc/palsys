@@ -3,7 +3,7 @@ package test;
 import java.util.ArrayList;
 
 import allocator.AddressPool;
-import allocator.AddressServer;
+import allocator.AddressPartition;
 import allocator.IPAddress;
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -14,25 +14,25 @@ public class AddressPoolTest extends TestCase {
 	String base = "192.168.1.";
 	String testID = "testID";
 	
-	AddressServer server1;
-	AddressServer server2;
-	AddressServer server3;
+	AddressPartition server1;
+	AddressPartition server2;
+	AddressPartition server3;
 	
-	ArrayList<AddressServer> servers;
+	ArrayList<AddressPartition> servers;
 	AddressPool pool;
 
 	public void setUp() {
-		servers = new ArrayList<AddressServer>();
-		server1 = new AddressServer("testServer1");
+		servers = new ArrayList<AddressPartition>();
+		server1 = new AddressPartition("testServer1");
 		servers.add(server1);
 		pool = new AddressPool(base, servers);
 	}
 	
 	public void setUpMultiple() {
-		servers = new ArrayList<AddressServer>();
-		server1 = new AddressServer("testServer1");
-		server2 = new AddressServer("testServer2");
-		server3 = new AddressServer("testServer3");
+		servers = new ArrayList<AddressPartition>();
+		server1 = new AddressPartition("testServer1");
+		server2 = new AddressPartition("testServer2");
+		server3 = new AddressPartition("testServer3");
 		servers.add(server1);
 		servers.add(server2);
 		servers.add(server3);
@@ -45,7 +45,7 @@ public class AddressPoolTest extends TestCase {
 		assertEquals(testID, lease.getOwner());
 		assertEquals(base+1, lease.getAddress());
 		assertEquals(false, lease.hasExpired());
-		assertEquals(lease.getController(), server1);
+		assertEquals(lease.getControllerID(), server1.getServerID());
 	}
 	
 	public void testLeaseExpired() {
@@ -54,8 +54,7 @@ public class AddressPoolTest extends TestCase {
 		try {
 			Thread.sleep(2200);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			fail();
 		}
 		assertEquals(true, lease.hasExpired());
 	}
@@ -66,8 +65,7 @@ public class AddressPoolTest extends TestCase {
 		try {
 			Thread.sleep(2000);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			fail();
 		}
 		pool.renewLease(testID, 2000, server1.getServerID());
 		assertEquals(false, lease.hasExpired());
@@ -76,7 +74,7 @@ public class AddressPoolTest extends TestCase {
 	public void testLoadBalancing() {
 		setUpMultiple();
 		int total = 0;
-		for (AddressServer server : pool.getActiveServers()) {
+		for (AddressPartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}
@@ -89,7 +87,7 @@ public class AddressPoolTest extends TestCase {
 		assertEquals(2, pool.numberOfActiveServers());
 		assertFalse(pool.isActive(server2));
 		int total = 0;
-		for (AddressServer server : pool.getActiveServers()) {
+		for (AddressPartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}
@@ -98,7 +96,7 @@ public class AddressPoolTest extends TestCase {
 		assertEquals(1, pool.numberOfActiveServers());
 		assertFalse(pool.isActive(server3));
 		total = 0;
-		for (AddressServer server : pool.getActiveServers()) {
+		for (AddressPartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}
@@ -112,7 +110,7 @@ public class AddressPoolTest extends TestCase {
 		assertNotSame(server1, pool.getCurrentBackup());
 		assertFalse(pool.isActive(server1));
 		int total = 0;
-		for (AddressServer server : pool.getActiveServers()) {
+		for (AddressPartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}
