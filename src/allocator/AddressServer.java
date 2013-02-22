@@ -79,6 +79,12 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 		Object[] objs = (Object[]) internalListener.view();
         addressPoolView = (AddressPool)objs[0];
 	}
+
+	public boolean renewLease(String clientID) {
+		boolean success = addressPoolView.renewLease(clientID, serverID);
+		ViewChange((View)internalListener.view());
+		return success;
+	}
 	
 
 }
