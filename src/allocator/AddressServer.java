@@ -7,7 +7,7 @@ import gmi.ServerSideProxy;
 import gmi.View;
 import gmi.protocols.Anycast;
 
-public class AddressServer implements MembershipListener, IPAddressRequestListener, InternalListener {
+public class AddressServer implements MembershipListener, ExternalAddressListener, InternalAddressListener {
 
 	private String serverID;
 	
@@ -15,7 +15,7 @@ public class AddressServer implements MembershipListener, IPAddressRequestListen
     private String address = "localhost";
     
     private ServerSideProxy proxy;
-    private InternalListener internalListener;
+    private InternalAddressListener internalListener;
     private ResourcePool addressPoolView;
 	
     public static void main(String[] arg) {
@@ -61,7 +61,7 @@ public class AddressServer implements MembershipListener, IPAddressRequestListen
     	
      	proxy = new ServerSideProxy(this, port, name, address);
      	proxy.join(groupname);
-     	internalListener = (InternalListener) proxy.getInternalStub(InternalListener.class);
+     	internalListener = (InternalAddressListener) proxy.getInternalStub(InternalAddressListener.class);
      }
      
 	@Anycast

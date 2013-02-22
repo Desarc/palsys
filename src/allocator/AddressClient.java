@@ -13,7 +13,7 @@ public class AddressClient {
 public AddressClient(String name, int port) {
         clientID = name;
         groupProxy = new GroupProxy(this, name, port, groupname, address); 
-        IPAddressRequestListener server = (IPAddressRequestListener) groupProxy.getServer();    
+        ExternalAddressListener server = (ExternalAddressListener) groupProxy.getServer();    
         IPAddress address = server.requestAddress(clientID);
     }
 
