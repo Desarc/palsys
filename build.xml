@@ -74,7 +74,7 @@
     <javac srcdir="${src}" destdir="${build}" target="1.5" debug="${debug}"
            includeAntRuntime="no" classpathref="compile.path">
       <!--<compilerarg value="-Xlint:unchecked"/>-->
-          <compilerarg value="-1.5" />
+          <!--  <compilerarg value="-1.5" />-->
     </javac>
   </target>
 
