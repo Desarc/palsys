@@ -1,6 +1,8 @@
 package allocator;
 
-public interface ResourcePool {
+import java.io.Serializable;
+
+public interface ResourcePool extends Serializable {
 	
 	public IPAddress getNewLease(String requesterID, String partitionID);
 	

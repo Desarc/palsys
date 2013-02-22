@@ -3,7 +3,6 @@ package allocator;
 import java.util.ArrayList;
 
 import gmi.GroupProxy;
-import hello.HelloClient;
 
 public class AddressClient {
 	
