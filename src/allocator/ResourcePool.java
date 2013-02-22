@@ -18,4 +18,10 @@ public interface ResourcePool {
 	
 	public boolean isActive(ResourcePartition partition);
 	
+	public void addServer(ResourcePartition partition);
+	
+	public boolean addBackup(ResourcePartition partition);
+	
+	public boolean removeBackup(ResourcePartition partition);
+	
 }

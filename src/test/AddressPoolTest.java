@@ -18,19 +18,21 @@ public class AddressPoolTest extends TestCase {
 	AddressPartition server1;
 	AddressPartition server2;
 	AddressPartition server3;
+	AddressPartition backup1;
+	AddressPartition backup2;
 	
-	ArrayList<AddressPartition> servers;
+	ArrayList<ResourcePartition> servers;
 	AddressPool pool;
 
 	public void setUp() {
-		servers = new ArrayList<AddressPartition>();
+		servers = new ArrayList<ResourcePartition>();
 		server1 = new AddressPartition("testServer1");
 		servers.add(server1);
 		pool = new AddressPool(base, servers);
 	}
 	
 	public void setUpMultiple() {
-		servers = new ArrayList<AddressPartition>();
+		servers = new ArrayList<ResourcePartition>();
 		server1 = new AddressPartition("testServer1");
 		server2 = new AddressPartition("testServer2");
 		server3 = new AddressPartition("testServer3");
@@ -38,6 +40,14 @@ public class AddressPoolTest extends TestCase {
 		servers.add(server2);
 		servers.add(server3);
 		pool = new AddressPool(base, servers);
+	}
+	
+	public void setUpBackups() {
+		setUpMultiple();
+		backup1 = new AddressPartition("backup1");
+		backup2 = new AddressPartition("backup2");
+		pool.addBackup(backup1);
+		pool.addBackup(backup2);
 	}
 	
 	public void testGetLease() {
@@ -83,9 +93,9 @@ public class AddressPoolTest extends TestCase {
 	}
 	
 	public void testServerCrash() {
-		setUpMultiple();
+		setUpBackups();
 		pool.serverCrash(server2);
-		assertEquals(2, pool.numberOfActiveServers());
+		assertEquals(3, pool.numberOfActiveServers());
 		assertFalse(pool.isActive(server2));
 		int total = 0;
 		for (ResourcePartition server : pool.getActivePartitions()) {
@@ -94,7 +104,7 @@ public class AddressPoolTest extends TestCase {
 		}
 		assertEquals(254, total);
 		pool.serverCrash(server3);
-		assertEquals(1, pool.numberOfActiveServers());
+		assertEquals(3, pool.numberOfActiveServers());
 		assertFalse(pool.isActive(server3));
 		total = 0;
 		for (ResourcePartition server : pool.getActivePartitions()) {
@@ -102,15 +112,10 @@ public class AddressPoolTest extends TestCase {
 			total += server.getFreeAddresses().size();
 		}
 		assertEquals(254, total);
-	}
-	
-	public void testServerCrashWithBackupChange() {
-		setUpMultiple();
-		pool.serverCrash(server1);
+		pool.serverCrash(backup1);
 		assertEquals(2, pool.numberOfActiveServers());
-		assertNotSame(server1, pool.getCurrentBackup());
-		assertFalse(pool.isActive(server1));
-		int total = 0;
+		assertFalse(pool.isActive(backup1));
+		total = 0;
 		for (ResourcePartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();

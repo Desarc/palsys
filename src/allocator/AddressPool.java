@@ -15,19 +15,19 @@ public class AddressPool implements ResourcePool {
 	
 	public static final long defaultValidTime = 60000;
 	
-	private ArrayList<AddressPartition> activePartitions;
-	private ResourcePartition currentBackup;
+	private ArrayList<ResourcePartition> activePartitions;
+	private ArrayList<ResourcePartition> backupPartitions;	//inactive
 	
 	
 	/**
 	 * 
 	 * @param addressBase format: "xxx.xxx.xxx."
 	 */
-	public AddressPool(String addressBase, ArrayList<AddressPartition> controllers) {
-		activePartitions = new ArrayList<AddressPartition>();
+	public AddressPool(String addressBase, ArrayList<ResourcePartition> controllers) {
+		activePartitions = new ArrayList<ResourcePartition>();
+		backupPartitions = new ArrayList<ResourcePartition>();
 		
-		currentBackup = controllers.get(0);
-		for (AddressPartition controller : controllers) {
+		for (ResourcePartition controller : controllers) {
 			activePartitions.add(controller);
 		}
 		
@@ -129,14 +129,8 @@ public class AddressPool implements ResourcePool {
 	 * @param newController
 	 */
 	private void changeController(ResourcePartition oldController, ResourcePartition newController) {
-		for (IPAddress address : oldController.getFreeAddresses()) {
-			address.setController(newController.getServerID());
-			newController.addFreeAddress(address);
-		}
-		for (IPAddress address : oldController.getAssignedAddresses()) {
-			address.setController(newController.getServerID());
-			newController.addAssignedAddress(address);
-		}
+		newController.addMultipleAddresses(oldController.getFreeAddresses());
+		newController.addMultipleAddresses(oldController.getAssignedAddresses());
 	}
 	
 	/**
@@ -145,30 +139,22 @@ public class AddressPool implements ResourcePool {
 	 */
 	public void serverCrash(ResourcePartition partition) {
 		if (activePartitions.contains(partition)) {
-			if (partition == currentBackup) {
-				if (!assignNewBackup(partition)) {
-					return;
-				}
-			}
-			changeController(partition, currentBackup);
 			activePartitions.remove(partition);
-		}
-	}
-	
-	/**
-	 * Method for changing which partition takes over in case of a crash
-	 * @param oldBackup
-	 * @return
-	 */
-	private boolean assignNewBackup(ResourcePartition oldBackup) {
-		for (ResourcePartition partition : activePartitions) {
-			if (partition != oldBackup) {
-				currentBackup = partition;
-				return true;
+			if (backupPartitions.size() > 0) {
+				ResourcePartition backup = backupPartitions.get(0);
+				backupPartitions.remove(backup);
+				changeController(partition, backup);
+				activePartitions.add(backup);
 			}
+			else if (activePartitions.size() > 0) {
+				ResourcePartition backup = activePartitions.get(0);
+				changeController(partition, backup);
+			}
+			
 		}
-		//return false if no other backup partition is available
-		return false;
+		else if (backupPartitions.contains(partition)) {
+			backupPartitions.remove(partition);
+		}
 	}
 	
 	public int numberOfActiveServers() {
@@ -177,13 +163,36 @@ public class AddressPool implements ResourcePool {
 	
 	public boolean isActive(ResourcePartition partition) {
 		return activePartitions.contains(partition);
-	}
+	}	
 	
-	public ResourcePartition getCurrentBackup() {
-		return currentBackup;
-	}
-	
-	public ArrayList<AddressPartition> getActivePartitions() {
+	public ArrayList<ResourcePartition> getActivePartitions() {
 		return activePartitions;
+	}
+	
+	/**
+	 * TODO
+	 */
+	public void addServer(ResourcePartition partition) {
+		for (ResourcePartition p : activePartitions) {
+			partition.addMultipleAddresses(p.reassignAddresses(254/activePartitions.size()*(activePartitions.size()+1)));
+		}
+		activePartitions.add(partition);
+		
+	}
+
+	public boolean addBackup(ResourcePartition partition) {
+		if (!backupPartitions.contains(partition)) {
+			backupPartitions.add(partition);
+			return true;
+		}
+		return false;
+	}
+
+	public boolean removeBackup(ResourcePartition partition) {
+		if (backupPartitions.contains(partition)) {
+			backupPartitions.remove(partition);
+			return true;
+		}
+		return false;
 	}
 }

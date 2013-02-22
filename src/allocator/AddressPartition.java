@@ -73,6 +73,7 @@ public class AddressPartition implements ResourcePartition {
 	
 	@Override
 	public void addFreeAddress(IPAddress address) {
+		address.setController(ServerID);
 		free.add(address);
 		if (assigned.contains(address)) {
 			assigned.remove(address);
@@ -81,6 +82,7 @@ public class AddressPartition implements ResourcePartition {
 	
 	@Override
 	public void addAssignedAddress(IPAddress address) {
+		address.setController(ServerID);
 		assigned.add(address);
 		if (free.contains(address)) {
 			free.remove(address);
@@ -119,6 +121,41 @@ public class AddressPartition implements ResourcePartition {
 	 * @param lease
 	 */
 	private void notifyReclaim(String previousOwner) {
+		
+	}
+
+	@Override
+	public ArrayList<IPAddress> reassignAddresses(int n) {
+		ArrayList<IPAddress> addresses = new ArrayList<IPAddress>();
+		for (int i = 0; i < n; i++) {
+			if (free.size() == 0) {
+				for (int j = i; j < n; i++) {
+					if (assigned.size() == 0) {
+						break;
+					}
+					addresses.add(assigned.get(0));
+					assigned.remove(0);
+				}
+				break;
+			}
+			addresses.add(free.get(0));
+			free.remove(0);
+		}
+			
+		return addresses;
+	}
+
+	@Override
+	public void addMultipleAddresses(ArrayList<IPAddress> addresses) {
+		for (IPAddress address : addresses) {
+			address.setController(ServerID);
+			if (address.hasExpired()) {
+				free.add(address);
+			}
+			else {
+				assigned.add(address);
+			}
+		}
 		
 	}
 }
