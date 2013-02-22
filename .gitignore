@@ -1,6 +1,4 @@
 *.class
-*.project
-*.classpath
 
 # Package Files #
 *.jar
