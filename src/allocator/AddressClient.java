@@ -1,5 +1,7 @@
 package allocator;
 
+import java.util.ArrayList;
+
 import gmi.GroupProxy;
 import hello.HelloClient;
 
@@ -9,12 +11,20 @@ public class AddressClient {
 	private String groupname = "servergroup1";
     private GroupProxy groupProxy;
     private String address = "localhost";
+	private boolean running;
+	private ArrayList<IPAddress> addressList;
     
 public AddressClient(String name, int port) {
         clientID = name;
         groupProxy = new GroupProxy(this, name, port, groupname, address); 
         ExternalAddressListener server = (ExternalAddressListener) groupProxy.getServer();    
         IPAddress address = server.requestAddress(clientID);
+        for(int i = 0; i<10; i++){
+        	IPAddress addr = server.requestAddress(clientID);
+        	addressList.add(addr);
+        }
+        running = true;
+        runningClient();
     }
 
 	public static void main(String[] arg) {
@@ -34,8 +44,20 @@ public AddressClient(String name, int port) {
 	    catch (Exception e) {
 	 	   usage();
 	    }
-            
-		new HelloClient(connName, port); 
+          
+		new AddressClient(connName, port);
+		//new HelloClient(connName, port); 
+	}
+	
+	private void runningClient(){
+		while(running){
+			try {
+				Thread.sleep(AddressPool.defaultValidTime/2);
+				// TODO: Request new leas
+			} catch (Exception e) {
+				// TODO: handle exception. Server crash?
+			}
+		}
 	}
 	
 	private static void usage() {
