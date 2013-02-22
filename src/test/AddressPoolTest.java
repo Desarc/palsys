@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import allocator.AddressPool;
 import allocator.AddressPartition;
 import allocator.IPAddress;
+import allocator.ResourcePartition;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -74,7 +75,7 @@ public class AddressPoolTest extends TestCase {
 	public void testLoadBalancing() {
 		setUpMultiple();
 		int total = 0;
-		for (AddressPartition server : pool.getActivePartitions()) {
+		for (ResourcePartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}
@@ -87,7 +88,7 @@ public class AddressPoolTest extends TestCase {
 		assertEquals(2, pool.numberOfActiveServers());
 		assertFalse(pool.isActive(server2));
 		int total = 0;
-		for (AddressPartition server : pool.getActivePartitions()) {
+		for (ResourcePartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}
@@ -96,7 +97,7 @@ public class AddressPoolTest extends TestCase {
 		assertEquals(1, pool.numberOfActiveServers());
 		assertFalse(pool.isActive(server3));
 		total = 0;
-		for (AddressPartition server : pool.getActivePartitions()) {
+		for (ResourcePartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}
@@ -110,7 +111,7 @@ public class AddressPoolTest extends TestCase {
 		assertNotSame(server1, pool.getCurrentBackup());
 		assertFalse(pool.isActive(server1));
 		int total = 0;
-		for (AddressPartition server : pool.getActivePartitions()) {
+		for (ResourcePartition server : pool.getActivePartitions()) {
 			assertTrue(server.getFreeAddresses().size() > 0);
 			total += server.getFreeAddresses().size();
 		}

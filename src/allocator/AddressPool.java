@@ -11,12 +11,12 @@ import java.util.ArrayList;
  * @author desarc
  *
  */
-public class AddressPool {
+public class AddressPool implements ResourcePool {
 	
 	public static final long defaultValidTime = 60000;
 	
 	private ArrayList<AddressPartition> activePartitions;
-	private AddressPartition currentBackup;
+	private ResourcePartition currentBackup;
 	
 	
 	/**
@@ -33,7 +33,6 @@ public class AddressPool {
 		
 		int c = activePartitions.size()-1;
 		for(int i=254; i>0; i--) {
-			//Alternating between partitions to ensure load balancing.
 			IPAddress address = new IPAddress(addressBase+i, -1, activePartitions.get(c).getServerID()); 
 			activePartitions.get(c).addFreeAddress(address);
 			if (i < c*254/activePartitions.size()) {
@@ -54,7 +53,7 @@ public class AddressPool {
 	 * @return
 	 */
 	public IPAddress getNewLease(String requesterID, long validTime, String partitionID) {
-		for (AddressPartition partition : activePartitions) {
+		for (ResourcePartition partition : activePartitions) {
 			if (partition.getServerID().equals(partitionID)) {
 				return partition.getNewLease(requesterID, validTime);
 			}
@@ -69,7 +68,7 @@ public class AddressPool {
 	 * @return
 	 */
 	public IPAddress getExistingLease(String ownerID, String partitionID) {
-		for (AddressPartition partition : activePartitions) {
+		for (ResourcePartition partition : activePartitions) {
 			if (partition.getServerID().equals(partitionID)) {
 				return partition.getExistingLease(ownerID);
 			}
@@ -89,7 +88,7 @@ public class AddressPool {
 	 * @return
 	 */
 	public boolean renewLease(String ownerID, long extraTime, String partitionID) {
-		for (AddressPartition partition : activePartitions) {
+		for (ResourcePartition partition : activePartitions) {
 			if (partition.getServerID().equals(partitionID)) {
 				return partition.renewLease(ownerID, extraTime);
 			}
@@ -103,7 +102,7 @@ public class AddressPool {
 	 * moves them to the free pool and notifies the previous owner.
 	 */
 	public void reclaimExpiredLeases() {
-		for (AddressPartition partition : activePartitions) {
+		for (ResourcePartition partition : activePartitions) {
 			partition.reclaimExpiredLeases();
 		}
 	}
@@ -115,7 +114,7 @@ public class AddressPool {
 	 * @return
 	 */
 	public boolean isAssigned(String address) {
-		for (AddressPartition partition : activePartitions) {
+		for (ResourcePartition partition : activePartitions) {
 			if (partition.isAssigned(address)) {
 				return true;
 			}
@@ -129,7 +128,7 @@ public class AddressPool {
 	 * @param addresses
 	 * @param newController
 	 */
-	private void changeController(AddressPartition oldController, AddressPartition newController) {
+	private void changeController(ResourcePartition oldController, ResourcePartition newController) {
 		for (IPAddress address : oldController.getFreeAddresses()) {
 			address.setController(newController.getServerID());
 			newController.addFreeAddress(address);
@@ -144,7 +143,7 @@ public class AddressPool {
 	 * Example handling of partition crash.
 	 * @param partition
 	 */
-	public void serverCrash(AddressPartition partition) {
+	public void serverCrash(ResourcePartition partition) {
 		if (activePartitions.contains(partition)) {
 			if (partition == currentBackup) {
 				if (!assignNewBackup(partition)) {
@@ -161,8 +160,8 @@ public class AddressPool {
 	 * @param oldBackup
 	 * @return
 	 */
-	private boolean assignNewBackup(AddressPartition oldBackup) {
-		for (AddressPartition partition : activePartitions) {
+	private boolean assignNewBackup(ResourcePartition oldBackup) {
+		for (ResourcePartition partition : activePartitions) {
 			if (partition != oldBackup) {
 				currentBackup = partition;
 				return true;
@@ -176,11 +175,11 @@ public class AddressPool {
 		return activePartitions.size();
 	}
 	
-	public boolean isActive(AddressPartition partition) {
+	public boolean isActive(ResourcePartition partition) {
 		return activePartitions.contains(partition);
 	}
 	
-	public AddressPartition getCurrentBackup() {
+	public ResourcePartition getCurrentBackup() {
 		return currentBackup;
 	}
 	

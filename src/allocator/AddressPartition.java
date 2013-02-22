@@ -2,7 +2,7 @@ package allocator;
 
 import java.util.ArrayList;
 
-public class AddressPartition {
+public class AddressPartition implements ResourcePartition {
 	
 	private String ServerID;
 	
@@ -15,6 +15,7 @@ public class AddressPartition {
 		assigned = new ArrayList<IPAddress>();
 	}
 	
+	@Override
 	public IPAddress getNewLease(String requesterID, long validTime) {
 		IPAddress lease = free.get(free.size()-1);
 		lease.assign(requesterID, validTime);
@@ -24,6 +25,7 @@ public class AddressPartition {
 	}
 	
 	
+	@Override
 	public IPAddress getExistingLease(String ownerID) {
 		for (IPAddress lease : assigned) {
 			if (lease.getOwner().equals(ownerID)) {
@@ -34,6 +36,7 @@ public class AddressPartition {
 		return getNewLease(ownerID, AddressPool.defaultValidTime);		
 	}
 	
+	@Override
 	public boolean renewLease(String ownerID, long extraTime) {
 		for (IPAddress lease : assigned) {
 			if (lease.getOwner().equals(ownerID)) {
@@ -45,6 +48,7 @@ public class AddressPartition {
 		return false;
 	}
 	
+	@Override
 	public void reclaimExpiredLeases() {
 		for (IPAddress lease : assigned) {
 			if (lease.hasExpired()) {
@@ -57,6 +61,7 @@ public class AddressPartition {
 		}
 	}
 	
+	@Override
 	public boolean isAssigned(String address) {
 		for (IPAddress lease : assigned) {
 			if (lease.getAddress().equals(address)) {
@@ -66,6 +71,7 @@ public class AddressPartition {
 		return false;
 	}
 	
+	@Override
 	public void addFreeAddress(IPAddress address) {
 		free.add(address);
 		if (assigned.contains(address)) {
@@ -73,13 +79,15 @@ public class AddressPartition {
 		}
 	}
 	
+	@Override
 	public void addAssignedAddress(IPAddress address) {
 		assigned.add(address);
 		if (free.contains(address)) {
 			free.remove(address);
 		}
 	}
-	
+
+	@Override
 	public void removeAddress(IPAddress address) {
 		if (free.contains(address)) {
 			free.remove(address);
@@ -89,14 +97,17 @@ public class AddressPartition {
 		}
 	}
 	
+	@Override
 	public ArrayList<IPAddress> getFreeAddresses() {
 		return free;
 	}
 	
+	@Override
 	public ArrayList<IPAddress> getAssignedAddresses() {
 		return assigned;
 	}
 	
+	@Override
 	public String getServerID() {
 		return ServerID;
 	}
