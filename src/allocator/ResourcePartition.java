@@ -1,8 +1,9 @@
 package allocator;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
-public interface ResourcePartition {
+public interface ResourcePartition extends Serializable {
 
 	public IPAddress getNewLease(String requesterID, long validTime);
 
