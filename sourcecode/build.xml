@@ -145,4 +145,20 @@
     </java>
   </target>
 
+	<!-- ***  Start the AddressServer  ***-->
+  <target name="addressserver" depends="build,interactive-uid"
+          description="Run the JaSoS hello server application (Sprad daemon must be running)">
+    <java classname="allocator.AddressServer" fork="true" classpathref="run.path">
+      <arg line="-c ${uid} -p ${port}"/>
+    </java>
+  </target>
+
+  <!-- ***  Start the AddressClient  ***-->
+  <target name="addressclient" depends="build,interactive-uid"
+          description="Run the JaSoS hello client application (Sprad daemon must be running)">
+    <java classname="allocator.AddressClient" fork="true" classpathref="run.path">
+      <arg line="-c ${uid} -p ${port}"/>
+    </java>
+  </target>
+
 </project>

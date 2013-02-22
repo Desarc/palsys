@@ -11,7 +11,7 @@
   <!-- **************************************************************** -->
 
   <!-- Port number for connecting to the Spread daemon (unique for each group) -->
-  <property name="port" value="4803"/>
+  <property name="port" value="4802"/>
 	
   <!-- Source directory -->
   <property name="src" value="src"/>
@@ -141,6 +141,14 @@
   <target name="helloclient" depends="build,interactive-uid"
           description="Run the JaSoS hello client application (Sprad daemon must be running)">
     <java classname="hello.HelloClient" fork="true" classpathref="run.path">
+      <arg line="-c ${uid} -p ${port}"/>
+    </java>
+  </target>
+
+	<!-- ***  Start the AddressServer  ***-->
+  <target name="addressserver" depends="build,interactive-uid"
+          description="Run the JaSoS hello server application (Sprad daemon must be running)">
+    <java classname="allocator.AddressServer" fork="true" classpathref="run.path">
       <arg line="-c ${uid} -p ${port}"/>
     </java>
   </target>
