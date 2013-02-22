@@ -11,7 +11,7 @@
   <!-- **************************************************************** -->
 
   <!-- Port number for connecting to the Spread daemon (unique for each group) -->
-  <property name="port" value="4803"/>
+  <property name="port" value="4802"/>
 	
   <!-- Source directory -->
   <property name="src" value="src"/>

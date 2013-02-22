@@ -15,7 +15,6 @@ public class AddressPartition implements ResourcePartition {
 		assigned = new ArrayList<IPAddress>();
 	}
 	
-	@Override
 	public IPAddress getNewLease(String requesterID, long validTime) {
 		IPAddress lease = free.get(free.size()-1);
 		lease.assign(requesterID, validTime);
@@ -24,8 +23,6 @@ public class AddressPartition implements ResourcePartition {
 		return lease;
 	}
 	
-	
-	@Override
 	public IPAddress getExistingLease(String ownerID) {
 		for (IPAddress lease : assigned) {
 			if (lease.getOwner().equals(ownerID)) {
@@ -36,7 +33,6 @@ public class AddressPartition implements ResourcePartition {
 		return getNewLease(ownerID, AddressPool.defaultValidTime);		
 	}
 	
-	@Override
 	public boolean renewLease(String ownerID, long extraTime) {
 		for (IPAddress lease : assigned) {
 			if (lease.getOwner().equals(ownerID)) {
@@ -48,7 +44,6 @@ public class AddressPartition implements ResourcePartition {
 		return false;
 	}
 	
-	@Override
 	public void reclaimExpiredLeases() {
 		for (IPAddress lease : assigned) {
 			if (lease.hasExpired()) {
@@ -61,7 +56,6 @@ public class AddressPartition implements ResourcePartition {
 		}
 	}
 	
-	@Override
 	public boolean isAssigned(String address) {
 		for (IPAddress lease : assigned) {
 			if (lease.getAddress().equals(address)) {
@@ -71,7 +65,6 @@ public class AddressPartition implements ResourcePartition {
 		return false;
 	}
 	
-	@Override
 	public void addFreeAddress(IPAddress address) {
 		address.setController(ServerID);
 		free.add(address);
@@ -80,7 +73,6 @@ public class AddressPartition implements ResourcePartition {
 		}
 	}
 	
-	@Override
 	public void addAssignedAddress(IPAddress address) {
 		address.setController(ServerID);
 		assigned.add(address);
@@ -89,7 +81,6 @@ public class AddressPartition implements ResourcePartition {
 		}
 	}
 
-	@Override
 	public void removeAddress(IPAddress address) {
 		if (free.contains(address)) {
 			free.remove(address);
@@ -99,17 +90,14 @@ public class AddressPartition implements ResourcePartition {
 		}
 	}
 	
-	@Override
 	public ArrayList<IPAddress> getFreeAddresses() {
 		return free;
 	}
 	
-	@Override
 	public ArrayList<IPAddress> getAssignedAddresses() {
 		return assigned;
 	}
 	
-	@Override
 	public String getServerID() {
 		return ServerID;
 	}
@@ -124,7 +112,6 @@ public class AddressPartition implements ResourcePartition {
 		
 	}
 
-	@Override
 	public ArrayList<IPAddress> reassignAddresses(int n) {
 		ArrayList<IPAddress> addresses = new ArrayList<IPAddress>();
 		for (int i = 0; i < n; i++) {
@@ -145,7 +132,6 @@ public class AddressPartition implements ResourcePartition {
 		return addresses;
 	}
 
-	@Override
 	public void addMultipleAddresses(ArrayList<IPAddress> addresses) {
 		for (IPAddress address : addresses) {
 			address.setController(ServerID);

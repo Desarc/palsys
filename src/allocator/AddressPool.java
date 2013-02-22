@@ -6,7 +6,8 @@ import java.util.ArrayList;
 /**
  * Class for managing an address pool. The pool is split between the active partitions,
  * and each of the active partitions must have an identical instance of this class.
- * Each active partition is assigned an address partition.
+ * Each active partition is assigned an address partition. This class represents a view
+ * of the total address pool.
  * 
  * @author desarc
  *
@@ -169,15 +170,11 @@ public class AddressPool implements ResourcePool {
 		return activePartitions;
 	}
 	
-	/**
-	 * TODO
-	 */
 	public void addServer(ResourcePartition partition) {
 		for (ResourcePartition p : activePartitions) {
 			partition.addMultipleAddresses(p.reassignAddresses(254/activePartitions.size()*(activePartitions.size()+1)));
 		}
 		activePartitions.add(partition);
-		
 	}
 
 	public boolean addBackup(ResourcePartition partition) {
