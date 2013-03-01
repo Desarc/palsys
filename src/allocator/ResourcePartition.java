@@ -9,9 +9,9 @@ public interface ResourcePartition extends Serializable {
 
 	public IPAddress getExistingLease(String ownerID);
 
-	public boolean renewLease(String ownerID, long extraTime);
+	public IPAddress renewLease(String address, long extraTime);
 
-	public void reclaimExpiredLeases();
+	public ArrayList<IPAddress> reclaimExpiredLeases();
 
 	public boolean isAssigned(String address);
 
@@ -21,14 +21,22 @@ public interface ResourcePartition extends Serializable {
 
 	public void removeAddress(IPAddress address);
 
-	public ArrayList<IPAddress> getFreeAddresses();
+	public int getFreeAddresses();
 
-	public ArrayList<IPAddress> getAssignedAddresses();
+	public int getAssignedAddresses();
+	
+	public int getAddresses();
 
 	public String getServerID();
 	
 	public ArrayList<IPAddress> reassignAddresses(int n);
 	
 	public void addMultipleAddresses(ArrayList<IPAddress> addresses);
+
+	public void updateView(IPAddress view, int code);
+	
+	public ArrayList<IPAddress> getAllLeases();
+	
+	public boolean controls(String address);
 
 }

@@ -6,6 +6,6 @@ public interface ExternalAddressListener extends ExternalGMIListener {
 	
 	public IPAddress requestAddress(String clientID);
 	
-	public boolean renewLease(String clientID);
+	public IPAddress renewLease(String clientID);
 
 }

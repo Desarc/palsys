@@ -14,40 +14,54 @@ import java.util.ArrayList;
  */
 public class AddressPool implements ResourcePool {
 	
-	public static final long defaultValidTime = 60000;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	public static final long defaultValidTime = 6000;
 	
+	public static final int ASSIGNED = 0;
+	public static final int RENEWED = 1;
+	public static final int EXPIRED = 2;
+	public static final int NEWSERVER = 3;
+	
+	private int poolSize = 15;
+
 	private ArrayList<ResourcePartition> activePartitions;
 	private ArrayList<ResourcePartition> backupPartitions;	//inactive
+	
+	private String addressBase;
+	
+	private String createdBy;
+	
+	public String getCreatedBy() {
+		return createdBy;
+	}
+
+	public void setCreatedBy(String createdBy) {
+		this.createdBy = createdBy;
+	}
+
+	
 	
 	
 	/**
 	 * 
 	 * @param addressBase format: "xxx.xxx.xxx."
 	 */
-	public AddressPool(String addressBase, ArrayList<ResourcePartition> controllers) {
+	public AddressPool(String addressBase, int poolSize) {
 		activePartitions = new ArrayList<ResourcePartition>();
 		backupPartitions = new ArrayList<ResourcePartition>();
-		
-		for (ResourcePartition controller : controllers) {
-			activePartitions.add(controller);
-		}
-		
-		int c = activePartitions.size()-1;
-		for(int i=254; i>0; i--) {
-			IPAddress address = new IPAddress(addressBase+i, -1, activePartitions.get(c).getServerID()); 
-			activePartitions.get(c).addFreeAddress(address);
-			if (i < c*254/activePartitions.size()) {
-				c--;
-			}
-		}
+		this.addressBase = addressBase;
+		this.poolSize = poolSize;
 	}
 	
 	public IPAddress getNewLease(String requesterID, String partitionID) {
 		return getNewLease(requesterID, defaultValidTime, partitionID);
 	}
 	
-	/**	TODO: check for duplicate requesterIDs
-	 * Method for getting a new lease.
+	/** Method for getting a new lease.
 	 * 
 	 * @param requesterID
 	 * @param validTime
@@ -77,8 +91,8 @@ public class AddressPool implements ResourcePool {
 		return null;
 	}
 	
-	public boolean renewLease(String ownerID, String partitionID) {
-		return renewLease(ownerID, defaultValidTime, partitionID);
+	public IPAddress renewLease(String address) {
+		return renewLease(address, defaultValidTime);
 	}
 	
 	/**
@@ -88,24 +102,28 @@ public class AddressPool implements ResourcePool {
 	 * @param extraTime
 	 * @return
 	 */
-	public boolean renewLease(String ownerID, long extraTime, String partitionID) {
+	public IPAddress renewLease(String address, long extraTime) {
 		for (ResourcePartition partition : activePartitions) {
-			if (partition.getServerID().equals(partitionID)) {
-				return partition.renewLease(ownerID, extraTime);
+			if (partition.controls(address)) {
+				return partition.renewLease(address, extraTime);
 			}
 		}
-		//return false if unable to renew lease
-		return false;
+		//return null if unable to renew lease
+		return null;
 	}
 	
 	/**
 	 * Checks if any assigned leases have expired, and if so,
 	 * moves them to the free pool and notifies the previous owner.
 	 */
-	public void reclaimExpiredLeases() {
+	public ArrayList<IPAddress> reclaimExpiredLeases(String serverID) {
+		ArrayList<IPAddress> expired = new ArrayList<IPAddress>();
 		for (ResourcePartition partition : activePartitions) {
-			partition.reclaimExpiredLeases();
+			if (partition.getServerID().equals(serverID)) {
+				expired.addAll(partition.reclaimExpiredLeases());
+			}
 		}
+		return expired;
 	}
 	
 	/**
@@ -123,38 +141,32 @@ public class AddressPool implements ResourcePool {
 		return false;
 	}
 	
-	/**
-	 * 
-	 * 
-	 * @param addresses
-	 * @param newController
-	 */
 	private void changeController(ResourcePartition oldController, ResourcePartition newController) {
-		newController.addMultipleAddresses(oldController.getFreeAddresses());
-		newController.addMultipleAddresses(oldController.getAssignedAddresses());
+		newController.addMultipleAddresses(oldController.reassignAddresses(oldController.getAddresses()));
 	}
 	
-	/**
-	 * Example handling of partition crash.
-	 * @param partition
-	 */
-	public void serverCrash(ResourcePartition partition) {
-		if (activePartitions.contains(partition)) {
-			activePartitions.remove(partition);
-			if (backupPartitions.size() > 0) {
-				ResourcePartition backup = backupPartitions.get(0);
-				backupPartitions.remove(backup);
-				changeController(partition, backup);
-				activePartitions.add(backup);
+	public void serverCrash(String serverID) {
+		for (ResourcePartition partition : activePartitions) {
+			if (partition.getServerID().equals(serverID)) {
+				System.out.println("Handling server crash.");
+				if (activePartitions.contains(partition)) {
+					System.out.println("Removing server from pool: "+partition.getServerID());
+					activePartitions.remove(partition);
+					if (backupPartitions.size() > 0) {
+						ResourcePartition backup = backupPartitions.get(0);
+						backupPartitions.remove(backup);
+						changeController(partition, backup);
+						activePartitions.add(backup);
+					}
+					else if (activePartitions.size() > 0) {
+						ResourcePartition backup = activePartitions.get(0);
+						changeController(partition, backup);
+					}
+				}
+				else if (backupPartitions.contains(partition)) {
+					backupPartitions.remove(partition);
+				}
 			}
-			else if (activePartitions.size() > 0) {
-				ResourcePartition backup = activePartitions.get(0);
-				changeController(partition, backup);
-			}
-			
-		}
-		else if (backupPartitions.contains(partition)) {
-			backupPartitions.remove(partition);
 		}
 	}
 	
@@ -170,11 +182,28 @@ public class AddressPool implements ResourcePool {
 		return activePartitions;
 	}
 	
-	public void addServer(ResourcePartition partition) {
-		for (ResourcePartition p : activePartitions) {
-			partition.addMultipleAddresses(p.reassignAddresses(254/activePartitions.size()*(activePartitions.size()+1)));
+	public void addServer(ResourcePartition partition, boolean first) {
+		if (first) {
+			for(int i=poolSize; i>0; i--) {
+				IPAddress address = new IPAddress(addressBase+i, -1, partition.getServerID()); 
+				partition.addFreeAddress(address);
+			}
 		}
+		else {
+			for (ResourcePartition p : activePartitions) {
+				partition.addMultipleAddresses(p.reassignAddresses(poolSize/(activePartitions.size()*(activePartitions.size()+1))));
+			}
+		}
+		System.out.println("Adding server to pool: "+partition.getServerID());
 		activePartitions.add(partition);
+	}
+	
+	public void mergeView(IPAddress view, int code) {
+		for (ResourcePartition partition : activePartitions) {
+			if (partition.getServerID().equals(view.getControllerID())) {
+				partition.updateView(view, code);
+			}
+		}
 	}
 
 	public boolean addBackup(ResourcePartition partition) {
@@ -191,5 +220,21 @@ public class AddressPool implements ResourcePool {
 			return true;
 		}
 		return false;
+	}
+
+	public ArrayList<IPAddress> getAllLeases() {
+		ArrayList<IPAddress> leases = new ArrayList<IPAddress>();
+		for (ResourcePartition partition : activePartitions) {
+			leases.addAll(partition.getAllLeases());
+		}
+		return leases;
+	}
+
+	public int getAddresses() {
+		int n = 0;
+		for (ResourcePartition partition : activePartitions) {
+			n += partition.getAddresses();
+		}
+		return n;
 	}
 }

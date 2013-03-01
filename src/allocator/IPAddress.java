@@ -11,10 +11,21 @@ public class IPAddress implements Serializable {
 	private String currentOwnerID;
 	private String controllerID;
 	
+	public IPAddress() {
+		this.expireTime = -1;
+	}
+	
 	public IPAddress(String address, long expireTime, String controllerID) {
 		this.address = address;
 		this.expireTime = expireTime;
 		this.controllerID = controllerID;
+	}
+	
+	public IPAddress(String address, long expireTime, String controllerID, String ownerID) {
+		this.address = address;
+		this.expireTime = expireTime;
+		this.controllerID = controllerID;
+		this.currentOwnerID = ownerID;
 	}
 	
 	public boolean hasExpired() {
@@ -22,7 +33,7 @@ public class IPAddress implements Serializable {
 	}
 	
 	public void extendValidTime(long extraTime) {
-		expireTime += extraTime;
+		expireTime = System.currentTimeMillis()+extraTime;
 	}
 	
 	public void setFree() {
@@ -49,5 +60,9 @@ public class IPAddress implements Serializable {
 	
 	public String getControllerID() {
 		return this.controllerID;
+	}
+	
+	public String toString() {
+		return address+"~"+expireTime+"~"+currentOwnerID+"~"+controllerID;
 	}
 }

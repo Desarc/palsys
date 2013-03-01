@@ -1,6 +1,7 @@
 package allocator;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 
 public interface ResourcePool extends Serializable {
 	
@@ -8,11 +9,11 @@ public interface ResourcePool extends Serializable {
 	
 	public IPAddress getExistingLease(String ownerID, String partitionID);
 	
-	public boolean renewLease(String ownerID, String partitionID);
+	public IPAddress renewLease(String address);
 	
-	public void serverCrash(ResourcePartition partition);
+	public void serverCrash(String serverID);
 	
-	public void reclaimExpiredLeases();
+	public ArrayList<IPAddress> reclaimExpiredLeases(String serverID);
 	
 	public boolean isAssigned(String address);
 	
@@ -20,10 +21,20 @@ public interface ResourcePool extends Serializable {
 	
 	public boolean isActive(ResourcePartition partition);
 	
-	public void addServer(ResourcePartition partition);
+	public void addServer(ResourcePartition partition, boolean first);
 	
 	public boolean addBackup(ResourcePartition partition);
 	
 	public boolean removeBackup(ResourcePartition partition);
+	
+	public String getCreatedBy();
+
+	public void setCreatedBy(String createdBy);
+
+	public void mergeView(IPAddress view, int code);	
+	
+	public ArrayList<IPAddress> getAllLeases();
+	
+	public int getAddresses();
 	
 }

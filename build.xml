@@ -75,6 +75,7 @@
            includeAntRuntime="no" classpathref="compile.path">
       <!--<compilerarg value="-Xlint:unchecked"/>-->
           <!--  <compilerarg value="-1.5" />-->
+    	<exclude name="test/" />
     </javac>
   </target>
 
