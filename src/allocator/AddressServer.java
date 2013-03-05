@@ -54,7 +54,7 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 	private void runServer() {
 		while (true) {
 			try {
-				Thread.sleep(10000);
+				Thread.sleep(5000);
 				reclaimExpiredLeases();
 				printStatus();
 			} catch (InterruptedException e) {
@@ -67,7 +67,7 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 		ArrayList<IPAddress> leases = addressPoolView.getAllLeases();
 		System.out.println("===================================================================\n");
 		for (IPAddress lease : leases) {
-			System.out.println(lease.getAddress()+" controlled by "+lease.getControllerID());
+			System.out.println(lease.getAddress()+" controlled by "+lease.getControllerID()+", leased to "+lease.getOwner());
 		}
 		System.out.println("\n===================================================================");
 	}
@@ -105,6 +105,9 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 			System.out.println("Assigned address "+address.getAddress()+" to "+clientID);
 			internalListener.updateView(address.toString(), AddressPool.ASSIGNED);
 		}
+		else {
+			reclaimExpiredLeases();
+		}
 		return address;
 	}
 
@@ -118,19 +121,18 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 
 	public void ViewChange(View view) {
 		Vector<String> newView = view.getView();
-		if (groupView.size() == 0 && newView.size() > 1) {
-			addressPoolView = new AddressPool(addressBase, poolSize);
-		}
 		boolean first = false;
 		if (groupView.size() == 0 && newView.size() == 1) {
 			first = true;
 		}
+		//if there are new servers in the view, add to datastructure
 		for (String server : newView) {
 			if (!groupView.contains(server)) {
 				groupView.add(server);
 				addressPoolView.addServer(new AddressPartition(server), first);
 			}
 		}
+		//update the new server with the datastructure to ensure consistency
 		for (String server : newView) {
 			if (!serverID.equals(server) && !first) {
 				ArrayList<IPAddress> leases = addressPoolView.getAllLeases();
@@ -139,7 +141,7 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 				}
 			}
 		}
-		
+		//if servers have disappeared from the view, remove from datastructure
 		ArrayList<String> toBeRemoved = new ArrayList<String>();
 		for (String server : groupView) {
 			if (!newView.contains(server)) {
@@ -169,7 +171,13 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 	@Multicast
 	public IPAddress renewLease(String address) {
 		boolean success = false;
-		IPAddress lease = addressPoolView.renewLease(address);
+		IPAddress lease = null;
+		try {
+			lease = addressPoolView.renewLease(address, serverID);
+		} catch (Exception e) {
+			System.out.println("Crash on renew");
+			e.printStackTrace();
+		}
 		this.lease = lease;
 		if (lease != null) {
 			renewSuccess = 1;
@@ -177,22 +185,48 @@ public class AddressServer implements MembershipListener, ExternalAddressListene
 		else {
 			renewSuccess = 0;
 		}
-		Object[] status = (Object[])internalListener.success();
+		Object[] status = new Object[0];
+		try {
+			status = (Object[])internalListener.success();
+		} catch (Exception e) {
+			System.out.println("Crash from internalListener.success()");
+			e.printStackTrace();
+		}
 		for (int i = 0; i < status.length; i++) {
-			if (status[i].toString().equals("1")) {
+			if (status[i] != null && status[i].toString().equals("1")) {
 				success = true;
 			}
 		}
 		if (success) {
-			Object[] leases = (Object[])internalListener.lease();
+			Object[] leases = new Object[0];
+			try {
+				leases = (Object[])internalListener.lease();
+			} catch(NullPointerException e) {
+				System.out.println("Crash from internalListener.lease()");
+				e.printStackTrace();
+			}
 			for (int i = 0; i < leases.length; i++) {
-				IPAddress findLease = toIPAddress(leases[i].toString());
+				IPAddress findLease = null;
+				try {
+					if (leases[i] != null) {
+						findLease = toIPAddress(leases[i].toString());
+					}
+				} catch (Exception e) {
+					System.out.println("Crash in findLease");
+					e.printStackTrace();
+				}
+				try {
 				if (findLease != null) {
 					lease = findLease;
 					if (findLease.getControllerID().equals(serverID)) {
 						System.out.println("Renewed lease "+lease.getAddress()+" to "+lease.getOwner());
 						internalListener.updateView(lease.toString(), AddressPool.RENEWED);
+						break;
 					}
+				}
+				} catch (Exception e) {
+					System.out.println("Crash on updateView");
+					e.printStackTrace();
 				}
 			}
 		}

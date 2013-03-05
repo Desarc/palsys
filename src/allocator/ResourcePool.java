@@ -9,7 +9,7 @@ public interface ResourcePool extends Serializable {
 	
 	public IPAddress getExistingLease(String ownerID, String partitionID);
 	
-	public IPAddress renewLease(String address);
+	public IPAddress renewLease(String address, String serverID);
 	
 	public void serverCrash(String serverID);
 	
@@ -36,5 +36,7 @@ public interface ResourcePool extends Serializable {
 	public ArrayList<IPAddress> getAllLeases();
 	
 	public int getAddresses();
+	
+	public boolean controls(String address, String serverID);
 	
 }

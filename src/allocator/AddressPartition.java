@@ -99,6 +99,7 @@ public class AddressPartition implements ResourcePartition {
 			}
 			if (!success) {
 				returnValue = null;
+				System.out.println("Failed to renew lease "+address+": expired!");
 			}
 			break;
 		case RECLAIM:
@@ -202,7 +203,6 @@ public class AddressPartition implements ResourcePartition {
 		if (returnValue == null || returnValue.size() == 0) {
 			return null;
 		}
-		System.out.println(serverID+" now controlling "+getAddresses());
 		return returnValue.get(0);
 	}
 	
@@ -283,7 +283,7 @@ public class AddressPartition implements ResourcePartition {
 			break;
 		case AddressPool.RENEWED:
 			System.out.println(view.getAddress()+" renewed by "+view.getControllerID()+" to "+view.getOwner());
-			renewLease(view.getOwner(), AddressPool.defaultValidTime);
+			renewLease(view.getAddress(), AddressPool.defaultValidTime);
 			break;
 		case AddressPool.NEWSERVER:
 			System.out.println("Initial view update: "+view.getAddress()+" controlled by "+view.getControllerID());

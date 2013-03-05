@@ -18,10 +18,7 @@ public class AddressClient {
 		groupProxy = new GroupProxy(this, name, port, groupname, address); 
 		server = (ExternalAddressListener) groupProxy.getServer();    
 		leaseList = new ArrayList<IPAddress>();
-
-		running = true;
 		clientID = groupProxy.getIdentifier();
-		runningClient();
 	}
 
 	public static void main(String[] arg) {
@@ -42,41 +39,78 @@ public class AddressClient {
 			usage();
 		}
 
-		new AddressClient(connName, port);
+		AddressClient client = new AddressClient(connName, port);
+		while (true) {
+			client.runningClient();
+			System.out.println("RESTARTING CLIENT.");
+		}
 	}
 
-	private void runningClient(){
+	private void runningClient() {
+		leaseList = new ArrayList<IPAddress>();
+		running = true;
 		for (int i = 0; i < 10; i++) {
-			IPAddress lease = server.requestAddress(clientID);
-			if (lease == null) {
-				System.out.println("Unable to get new lease from server.");
-				break;
+			IPAddress lease = null;
+			try {
+				lease = server.requestAddress(clientID);
+			} catch (NullPointerException e) {
+				System.out.println("Server error.");
+				e.printStackTrace();
 			}
-			leaseList.add(lease);
-			System.out.println("IPAddress: "+lease.getAddress()+" from "+lease.getControllerID());
+			if (lease == null) {
+				System.out.println("Unable to get lease from server.");
+			}
+			else {
+				leaseList.add(lease);
+				System.out.println("IPAddress: "+lease.getAddress()+" from "+lease.getControllerID());
+			}
 		}
+		int runs = 0;
 		while(running){
+			runs++;
 			try {
 				Thread.sleep(AddressPool.defaultValidTime/2);
-				if (leaseList.size() != 0) {
-					//int n = (int)(Math.random()*leaseList.size());
-					//for (int i = 0; i < n; i++) {
-						//IPAddress lease = leaseList.get(i);
-						IPAddress lease = leaseList.get(0);
-						System.out.println("Attempting to renew lease from "+lease.getControllerID());
-						IPAddress renewed = server.renewLease(lease.getAddress());
-						if (renewed != null) {
-							System.out.println("Renewed lease "+renewed.getAddress()+" from "+renewed.getControllerID());
-						}
-						else {
-							leaseList.remove(lease);
-							System.out.println("Failed to renew lease.");
-						}
-					//}
+			} catch (InterruptedException e1) {
+				e1.printStackTrace();
+			}
+			if (leaseList.size() != 0) {
+				int n = (int)(Math.random()*leaseList.size()-1);
+				n++;
+				System.out.println("ATTEMPTING TO RENEW "+n+" LEASES.");
+				ArrayList<IPAddress> failedList = new ArrayList<IPAddress>();
+				for (int i = 0; i < n; i++) {
+					IPAddress lease = leaseList.get(i);
+					IPAddress renewed = null;
+					try {
+						//for (int j = 0; j < 3; j++) {
+							renewed = server.renewLease(lease.getAddress());
+						/*	if (renewed != null) {
+								break;
+							}
+						}*/
+					}	catch (Exception e) {
+						System.out.println("Server error.");
+						e.printStackTrace();
+						renewed = null;
+						failedList.add(lease);
+					}
+					if (renewed != null) {
+						System.out.println("Renewed lease "+renewed.getAddress()+" from "+renewed.getControllerID());
+					}
+					else {
+						failedList.add(lease);
+						System.out.println("Failed to renew lease "+lease.getAddress()+".");
+					}
 				}
-			} catch (Exception e) {
-				System.out.println("Crash?");
-				e.printStackTrace();
+				for (IPAddress failed : failedList) {
+					leaseList.remove(failed);
+				}
+			}
+			else {
+				running = false;
+			}
+			if (runs > 6) {
+				running = false;
 			}
 		}
 	}

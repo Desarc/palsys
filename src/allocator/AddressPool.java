@@ -19,14 +19,14 @@ public class AddressPool implements ResourcePool {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	public static final long defaultValidTime = 6000;
+	public static final long defaultValidTime = 12000;
 	
 	public static final int ASSIGNED = 0;
 	public static final int RENEWED = 1;
 	public static final int EXPIRED = 2;
 	public static final int NEWSERVER = 3;
 	
-	private int poolSize = 15;
+	private int poolSize;
 
 	private ArrayList<ResourcePartition> activePartitions;
 	private ArrayList<ResourcePartition> backupPartitions;	//inactive
@@ -91,8 +91,8 @@ public class AddressPool implements ResourcePool {
 		return null;
 	}
 	
-	public IPAddress renewLease(String address) {
-		return renewLease(address, defaultValidTime);
+	public IPAddress renewLease(String address, String serverID) {
+		return renewLease(address, defaultValidTime, serverID);
 	}
 	
 	/**
@@ -102,9 +102,9 @@ public class AddressPool implements ResourcePool {
 	 * @param extraTime
 	 * @return
 	 */
-	public IPAddress renewLease(String address, long extraTime) {
+	public IPAddress renewLease(String address, long extraTime, String serverID) {
 		for (ResourcePartition partition : activePartitions) {
-			if (partition.controls(address)) {
+			if (partition.controls(address) && partition.getServerID().equals(serverID)) {
 				return partition.renewLease(address, extraTime);
 			}
 		}
@@ -236,5 +236,14 @@ public class AddressPool implements ResourcePool {
 			n += partition.getAddresses();
 		}
 		return n;
+	}
+	
+	public boolean controls(String address, String serverID) {
+		for (ResourcePartition partition : activePartitions) {
+			if (partition.getServerID().equals(serverID)) {
+				return partition.controls(address);
+			}
+		}
+		return false;
 	}
 }
